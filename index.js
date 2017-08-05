@@ -1,6 +1,6 @@
 var Feact = {
     render(element,container) {
-        var conponentInstance = new FeactDOMComponent(element);
+        var conponentInstance = new FeactCompositeComponent(element);
         conponentInstance.mountComponent(container);
 
     },
@@ -13,6 +13,22 @@ var Feact = {
         element.props.children = children;
         return element;
     },
+    createClass(obj){
+
+        // function Constructor(props) {
+        //     this.props = props;
+        // }
+        // Constructor.prototype.render = obj.render;
+        class Constructor{
+            constructor(props){
+                this.props = props;
+            }
+            render(){
+                return obj.render.call(this);
+            }
+        }
+        return Constructor;
+    }
 };
 
 class FeactDOMComponent{
@@ -29,5 +45,20 @@ class FeactDOMComponent{
         //
         this._hostNode = domElement;
         return domElement;
+    }
+}
+class FeactCompositeComponent{
+    constructor(element){
+        this._currentElement = element;
+    }
+    mountComponent(container){
+        const type = this._currentElement.type;
+        const props = this._currentElement.props;
+        console.log(props);
+        const elementInstance = new type(props);
+        const el = elementInstance.render();
+
+        var componentInstance = new FeactDOMComponent(el);
+        componentInstance.mountComponent(container);
     }
 }
