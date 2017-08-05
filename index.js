@@ -1,12 +1,17 @@
+const TopLevelComponentWrapper = function (props) {
+    this.props = props;
+}
+TopLevelComponentWrapper.prototype.render = function () {
+    return this.props;
+}
+
+
+
 var Feact = {
     render(element,container) {
         const type = element.type;
-        let conponentInstance;
-        if(typeof type === 'string'){
-            conponentInstance = new FeactDOMComponent(element);
-        }else if( Object.prototype.toString.call(type) === '[object Function]'){
-            conponentInstance = new FeactCompositeComponentWrapper(element);
-        }
+        const wrapperElement = this.createElement(TopLevelComponentWrapper, element);
+        const conponentInstance = new FeactCompositeComponentWrapper(wrapperElement);
         conponentInstance.mountComponent(container);
 
     },
