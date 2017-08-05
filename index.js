@@ -1,6 +1,12 @@
 var Feact = {
     render(element,container) {
-        var conponentInstance = new FeactCompositeComponentWrapper(element);
+        const type = element.type;
+        let conponentInstance;
+        if(typeof type === 'string'){
+            conponentInstance = new FeactDOMComponent(element);
+        }else if( Object.prototype.toString.call(type) === '[object Function]'){
+            conponentInstance = new FeactCompositeComponentWrapper(element);
+        }
         conponentInstance.mountComponent(container);
 
     },
@@ -55,9 +61,12 @@ class FeactCompositeComponentWrapper{
         const Component = this._currentElement.type;
         const props = this._currentElement.props;
         const componentInstance = new Component(props);
-        const element = componentInstance.render();
+        let element = componentInstance.render();
 
-        var domComponentInstance = new FeactDOMComponent(element);
+        while( Object.prototype.toString.call(element.type) === '[object Function]'){
+            element = (new element.type(element.props)).render();
+        }
+        const domComponentInstance = new FeactDOMComponent(element);
         domComponentInstance.mountComponent(container);
     }
 }
