@@ -11,8 +11,8 @@ var Feact = {
     render(element,container) {
         const type = element.type;
         const wrapperElement = this.createElement(TopLevelComponentWrapper, element);
-        const conponentInstance = new FeactCompositeComponentWrapper(wrapperElement);
-        conponentInstance.mountComponent(container);
+        const componentInstance = new FeactCompositeComponentWrapper(wrapperElement);
+        return FeactReconciler.mountComponent(componentInstance, container);
 
     },
     createElement(type, props, children) {
@@ -26,18 +26,18 @@ var Feact = {
     },
     createClass(spec){
 
-        // function Constructor(props) {
-        //     this.props = props;
-        // }
-        // Constructor.prototype.render = obj.render;
-        class Constructor{
-            constructor(props){
-                this.props = props;
-            }
-            render(){
-                return spec.render.call(this);
-            }
+        function Constructor(props) {
+            this.props = props;
         }
+        Object.assign(Constructor.prototype, spec);
+        // class Constructor{
+        //     constructor(props){
+        //         this.props = props;
+        //     }
+        //     render(){
+        //         return spec.render.call(this);
+        //     }
+        // }
         return Constructor;
     }
 };
@@ -66,12 +66,54 @@ class FeactCompositeComponentWrapper{
         const Component = this._currentElement.type;
         const props = this._currentElement.props;
         const componentInstance = new Component(props);
-        let element = componentInstance.render();
+        this._instance = componentInstance;
+
+        if(componentInstance.componentWillMount){
+            componentInstance.componentWillMount();
+        }
+
+
+        const markup = this.performInitialMount(container);
+        if(componentInstance.componentDidMount){
+            componentInstance.componentDidMount();
+        }
+        return markup;
+
+
+        let child = componentInstance.render();
+
+        this.initialMount(child);
 
         while( Object.prototype.toString.call(element.type) === '[object Function]'){
             element = (new element.type(element.props)).render();
         }
         const domComponentInstance = new FeactDOMComponent(element);
         domComponentInstance.mountComponent(container);
+
+    }
+    performInitialMount(container){
+        // child
+        let renderedElement = this._instance.render();
+
+        const child = instantiateFeactComponent(renderedElement);
+        this._renderedComponent = child;
+
+        return FeactReconciler.mountComponent(child, container);
+
+
+    }
+}
+
+const FeactReconciler = {
+    mountComponent(internalInstance, container){
+        return internalInstance.mountComponent(container);
+    }
+}
+
+function instantiateFeactComponent(element) {
+    if (typeof element.type === 'string') {
+        return new FeactDOMComponent(element);
+    } else if (typeof element.type === 'function') {
+        return new FeactCompositeComponentWrapper(element);
     }
 }
