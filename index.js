@@ -145,11 +145,31 @@ class FeactCompositeComponentWrapper{
     }
     updateComponent(prevElement, nextElement){
         const  nextProps = nextElement.props;
-        this._performComponentUpdate(nextElement, nextProps);
+        const inst = this._instance;
+
+
+        if (inst.componentWillReceiveProps) {
+            inst.componentWillReceiveProps(nextProps);
+        }
+
+        let shouldUpdate = true;
+        if (inst.shouldComponentUpdate) {
+            shouldUpdate = inst.shouldComponentUpdate(nextProps);
+        }
+        if (shouldUpdate) {
+            this._performComponentUpdate(nextElement, nextProps);
+        } else {
+            // if skipping the update,
+            // still need to set the latest props
+            inst.props = nextProps;
+        }
     }
     _performComponentUpdate(nextElement, nextProps){
         this._currentElement = nextElement;
         const inst = this._instance;
+
+
+
         inst.props = nextProps;
         this._updateRenderedComponent();
     }
