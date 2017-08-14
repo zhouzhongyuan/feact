@@ -157,13 +157,16 @@ class FeactCompositeComponentWrapper{
         const prevComponentInstance = this._renderedComponent;
         const inst = this._instance;
         const nextRenderedElement = inst.render();
-        prevComponentInstance.receiveComponent(nextRenderedElement);
+        FeactReconciler.receiveComponent(prevComponentInstance, nextRenderedElement);
     }
 }
 
 const FeactReconciler = {
     mountComponent(internalInstance, container){
         return internalInstance.mountComponent(container);
+    },
+    receiveComponent(internalInstance, nextElement){
+        internalInstance.receiveComponent(nextElement);
     }
 }
 
@@ -192,5 +195,5 @@ function getTopLevelComponentInContainer(container) {
 
 function updateRootComponent(prevComponent, nextElement) {
     // need to figure this out too
-    prevComponent.receiveComponent(nextElement);
+    FeactReconciler.receiveComponent(prevComponent, nextElement);
 }
