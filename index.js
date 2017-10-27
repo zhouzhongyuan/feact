@@ -1,67 +1,99 @@
-const TopLevelComponentWrapper = function (props) {
+const TopLevelWrapper = function (props) {
     this.props = props;
 }
-TopLevelComponentWrapper.prototype.render = function () {
+TopLevelWrapper.prototype.render = function () {
     return this.props;
 }
 
 
-
-var Feact = {
-    render(element,container) {
-
-        const prevComponent = getTopLevelComponentInContainer(container);
-
-        if(prevComponent){
-            return updateRootComponent(prevComponent, element);
-        }else {
-            return renderNewRootComponent(element, container);
-        }
-
+const FeactInstanceMap = {
+    set(key, value) {
+        key.__feactInternalInstance = value;
     },
-    createElement(type, props, children) {
 
-        const element = {
-            type,
-            props: props || {},
-        }
-        element.props.children = children;
-        return element;
-    },
-    createClass(spec){
-
-        function Constructor(props) {
-            this.props = props;
-        }
-        Object.assign(Constructor.prototype, spec);
-        // class Constructor{
-        //     constructor(props){
-        //         this.props = props;
-        //     }
-        //     render(){
-        //         return spec.render.call(this);
-        //     }
-        // }
-        return Constructor;
+    get(key) {
+        return key.__feactInternalInstance;
     }
 };
+
+var Feact = {
+    createElement: function (type, props, children) {
+        return {
+            type,
+            props: Object.assign({}, props, {children: children})
+        };
+    },
+    render: function (element, container) {
+
+
+
+        const prevComponent = this.getRootComponent(container);
+
+        if(prevComponent){
+            //update
+            this.updateComponent(prevComponent, element);
+        }else{
+            // new
+            this.newRoot(element, container);
+        }
+
+        
+
+    },
+    getRootComponent: function(container) {
+        return container._renderedComponent;
+    },
+    updateComponent(prevComponent, nextElement){
+        prevComponent.receiveComponent(nextElement);
+    },
+    newRoot: function (element, container) {
+        const wrapperElement = this.createElement(TopLevelWrapper,element);
+        const componentInstance = new FeactCompositeComponentWrap(wrapperElement);
+        const markup = FeactReconciler.mountComponent(componentInstance, container);
+
+        container._renderedComponent = componentInstance._renderedComponent
+        return markup;
+    },
+    createClass: function (obj) {
+
+
+
+
+
+        var Constructor = function (props) {
+            this.props = props;
+
+
+            const initialState = this.getInitialState ? this.getInitialState(): null;
+            this.state = initialState;
+        }
+        Constructor.prototype = Object.assign({},obj)
+        Constructor.prototype.render = obj.render;
+        Constructor.prototype.setState = function (partialState) {
+
+            const internalInstance = FeactInstanceMap.get(this);
+
+            internalInstance._pendingPartialState = partialState;
+
+            FeactReconciler.performUpdateIfNecessary(internalInstance);
+        }
+        return Constructor;
+    }
+}
 
 class FeactDOMComponent{
     constructor(element){
         this._currentElement = element;
     }
     mountComponent(container){
-        const type = this._currentElement.type;
-        const text = this._currentElement.props.children;
-        const domElement = document.createElement(type);
-        const textNode = document.createTextNode(text);
-        domElement.appendChild(textNode);
-        container.appendChild(domElement);
-        //
-        this._hostNode = domElement;
-        return domElement;
+        const wrapEl = document.createElement(this._currentElement.type);
+        const textEl = document.createTextNode(this._currentElement.props.children);
+        container.appendChild(wrapEl.appendChild(textEl));
+        this._hostNode = wrapEl;
+        return wrapEl;
     }
     receiveComponent(nextElement){
+        console.log('receive component');
         const prevElement = this._currentElement;
         this.updateComponent(prevElement, nextElement);
     }
@@ -73,147 +105,101 @@ class FeactDOMComponent{
         this._updateDOMChildren(lastProps, nextProps);
 
         this._currentElement = nextElement;
-    }
-    _updateDOMProperties(lastProps, nextProps){
-        //TODO nothing to do, will explain why later.
-        // explain: _updateDOMProperties is mostly concerned with updating CSS styles.
-    }
-    _updateDOMChildren(lastProps, nextProps){
-        // finnally, the component can update the DOM here
-        // I'll implement this next
 
+    }
+    _updateDOMProperties(){
+
+    }
+    _updateDOMChildren(lastProps, nextProps) {
         const lastContent = lastProps.children;
         const nextContent = nextProps.children;
 
-        if(!nextProps){
+        if (!nextContent) {
             this.updateTextContent('');
-        }else if(lastContent !== nextContent){
+        } else if (lastContent !== nextContent) {
             this.updateTextContent('' + nextContent);
         }
-
-
-
-
-
     }
-    updateTextContent(text){
+
+    updateTextContent(text) {
         const node = this._hostNode;
+        console.log(node);
         const firstChild = node.firstChild;
-        if(firstChild && firstChild === node.lastChild && firstChild.nodeType ===3){
+
+        if (firstChild && firstChild === node.lastChild
+            && firstChild.nodeType === 3) {
             firstChild.nodeValue = text;
             return;
         }
+
         node.textContent = text;
     }
 }
-class FeactCompositeComponentWrapper{
+
+class FeactCompositeComponentWrap{
     constructor(element){
         this._currentElement = element;
     }
     mountComponent(container){
         const Component = this._currentElement.type;
-        const props = this._currentElement.props;
-        const componentInstance = new Component(props);
+        const componentInstance = new Component(this._currentElement.props);
+        FeactInstanceMap.set(componentInstance, this);
         this._instance = componentInstance;
-
+        // will mount
         if(componentInstance.componentWillMount){
             componentInstance.componentWillMount();
         }
+        this.perfromInitialMount(container);
 
-
-        const markup = this.performInitialMount(container);
         if(componentInstance.componentDidMount){
             componentInstance.componentDidMount();
         }
-        return markup;
-
+        // did mount
     }
-    performInitialMount(container){
-        // child
+    perfromInitialMount(container){
         let renderedElement = this._instance.render();
-
         const child = instantiateFeactComponent(renderedElement);
+
         this._renderedComponent = child;
 
-        return FeactReconciler.mountComponent(child, container);
 
+        console.log(child);
 
+        return FeactReconciler.mountComponent(child,container);
     }
     receiveComponent(nextElement){
         const prevElement = this._currentElement;
         this.updateComponent(prevElement, nextElement);
     }
     updateComponent(prevElement, nextElement){
-        const  nextProps = nextElement.props;
-        const inst = this._instance;
-
-
-        if (inst.componentWillReceiveProps) {
-            inst.componentWillReceiveProps(nextProps);
-        }
-
-        let shouldUpdate = true;
-        if (inst.shouldComponentUpdate) {
-            shouldUpdate = inst.shouldComponentUpdate(nextProps);
-        }
-        if (shouldUpdate) {
-            this._performComponentUpdate(nextElement, nextProps);
-        } else {
-            // if skipping the update,
-            // still need to set the latest props
-            inst.props = nextProps;
-        }
-    }
-    _performComponentUpdate(nextElement, nextProps){
         this._currentElement = nextElement;
-        const inst = this._instance;
+        this._instance.props = nextElement.props;
 
-
-
-        inst.props = nextProps;
-        this._updateRenderedComponent();
+        const nextState = Object.assign({}, this._instance.state, this._pendingPartialState);
+        this._pendingPartialState = null;
+        this._instance.state = nextState;
+        //update rendered component
+        const nextRenderedElement = this._instance.render();
+        this._renderedComponent.receiveComponent(nextRenderedElement)
     }
-    _updateRenderedComponent(){
-        const prevComponentInstance = this._renderedComponent;
-        const inst = this._instance;
-        const nextRenderedElement = inst.render();
-        FeactReconciler.receiveComponent(prevComponentInstance, nextRenderedElement);
+    performUpdateIfNecessary() {
+        this.updateComponent(this._currentElement, this._currentElement);
     }
 }
 
 const FeactReconciler = {
-    mountComponent(internalInstance, container){
-        return internalInstance.mountComponent(container);
+    mountComponent: function (internalInstance, container) {
+        internalInstance.mountComponent(container);
     },
-    receiveComponent(internalInstance, nextElement){
-        internalInstance.receiveComponent(nextElement);
+    performUpdateIfNecessary(internalInstance) {
+        internalInstance.performUpdateIfNecessary();
     }
 }
 
 function instantiateFeactComponent(element) {
-    if (typeof element.type === 'string') {
+    if(typeof element.type === 'string'){
         return new FeactDOMComponent(element);
-    } else if (typeof element.type === 'function') {
-        return new FeactCompositeComponentWrapper(element);
+    }else{
+        return new FeactCompositeComponentWrap(element);
     }
-}
-
-function renderNewRootComponent(element, container) {
-    const wrapperElement = Feact.createElement(TopLevelComponentWrapper, element);
-    const componentInstance = new FeactCompositeComponentWrapper(wrapperElement);
-
-    const markUp = FeactReconciler.mountComponent(componentInstance, container);
-    container._feactComponentInstance = componentInstance._renderedComponent;
-    return markUp;
-
-}
-
-function getTopLevelComponentInContainer(container) {
-    // need to figure this out
-    return container._feactComponentInstance;
-}
-
-function updateRootComponent(prevComponent, nextElement) {
-    // need to figure this out too
-    FeactReconciler.receiveComponent(prevComponent, nextElement);
 }
