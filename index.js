@@ -1,3 +1,15 @@
+
+// 硬造出一个CompositeComponent，只有render方法
+function TopLevelWrapper(props) {
+    this.props = props;
+}
+
+TopLevelWrapper.prototype.render = function () {
+    return this.props;
+}
+
+
+
 const Feact = {
     createElement: function (type, props, children) {
         return {
@@ -9,7 +21,10 @@ const Feact = {
         // const internalInstance = new FeactDOMComponent(element);
         // internalInstance.mountComponent(container);
 
-        const internalInstance = new FeactCompositeComponent(element);
+
+        const wrapperElement = this.createElement(TopLevelWrapper,element);
+
+        const internalInstance = new FeactCompositeComponent(wrapperElement);
         internalInstance.mountComponent(container);
     },
     createClass(obj){
@@ -43,7 +58,10 @@ class FeactCompositeComponent{
     mountComponent(container){
 
         const componentInstance = new this.currentElement.type(this.currentElement.props);
-        const renderedElement = componentInstance.render();
+        let renderedElement = componentInstance.render();
+        while(typeof renderedElement.type === 'function'){
+            renderedElement = new renderedElement.type(renderedElement.props).render();
+        }
 
         const internalInstance = new FeactDOMComponent(renderedElement);
         internalInstance.mountComponent(container);
