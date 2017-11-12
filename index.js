@@ -8,6 +8,8 @@
 * 要点：container里存储的是childComponentInstance
 *
 *
+* 如何update compositeComponent
+* 非常简单，看updateComponent函数
 *
 * */
 
@@ -34,7 +36,7 @@ const Feact = {
         // internalInstance.mountComponent(container);
 
         if(container._childComponentInstance){
-            container._childComponentInstance.updateComponent(container._childComponentInstance.currentElement,element);
+            container._childComponentInstance.receiveComponent(element);
         }else{
             const wrapperElement = this.createElement(TopLevelWrapper,element);
             const internalInstance = new FeactCompositeComponent(wrapperElement);
@@ -67,8 +69,10 @@ class FeactDOMComponent{
         this._hostNode = el;
         container.appendChild(el);
     }
+    receiveComponent(nextElement){
+        this.updateComponent(this.currentElement, nextElement);
+    }
     updateComponent(lastElement, nextElement){
-        console.log(nextElement.children)
         this._hostNode.firstChild.nodeValue = nextElement.props.children;
     }
 }
@@ -96,8 +100,14 @@ class FeactCompositeComponent{
         this._childComponentInstance = childInstance;
         return FeactReconciler.mountComponent(childInstance, container);
     }
+    receiveComponent(nextElement){
+        this.updateComponent(this.currentElement, nextElement);
+    }
     updateComponent(lastElement, nextElement){
 
+        this._instance.props = nextElement.props; //更新此Component的props
+        const nextRenderedElement = this._instance.render(); // 重新render此Component
+        this._childComponentInstance.receiveComponent(nextRenderedElement); //子组件开始更新。
     }
 }
 
