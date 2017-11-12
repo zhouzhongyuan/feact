@@ -105,9 +105,9 @@ class FeactCompositeComponent{
     }
     updateComponent(lastElement, nextElement){
 
-        this._instance.props = nextElement.props; //更新此Component的props
-        const nextRenderedElement = this._instance.render(); // 重新render此Component
-        this._childComponentInstance.receiveComponent(nextRenderedElement); //子组件开始更新。
+        this._instance.props = nextElement.props; //更新“此Component”的props
+        const nextRenderedElement = this._instance.render(); // 重新render“此Component”
+        this._childComponentInstance.receiveComponent(nextRenderedElement); //“子组件”开始更新。
     }
 }
 
