@@ -59,11 +59,30 @@ class FeactCompositeComponent{
 
         const componentInstance = new this.currentElement.type(this.currentElement.props);
         let renderedElement = componentInstance.render();
-        while(typeof renderedElement.type === 'function'){
-            renderedElement = new renderedElement.type(renderedElement.props).render();
+        if(componentInstance.componentWillMount){
+            componentInstance.componentWillMount();
         }
+        const instance = instantiateFeactComponent(renderedElement);
 
-        const internalInstance = new FeactDOMComponent(renderedElement);
+        FeactReconciler.mountComponent(instance, container);
+        if(componentInstance.componentDidMount){
+            componentInstance.componentDidMount();
+        }
+    }
+}
+
+function instantiateFeactComponent(element) {
+    let internalInstance;
+    if(typeof element.type === 'function'){
+        internalInstance = new FeactCompositeComponent(element);
+    }else{
+        internalInstance = new FeactDOMComponent(element);
+    }
+    return internalInstance;
+}
+
+const FeactReconciler = {
+    mountComponent(internalInstance, container){
         internalInstance.mountComponent(container);
     }
 }

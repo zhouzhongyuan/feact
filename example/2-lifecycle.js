@@ -23,6 +23,6 @@ const MyTitle = Feact.createClass({
 });
 
 Feact.render(
-    Feact.createElement(MyTitle, { message: 'hey there Feact' }),
+    Feact.createElement(MyTitle, { message: 'life cycle' }),
     document.getElementById('root')
 );
