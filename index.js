@@ -49,9 +49,15 @@ const Feact = {
     createClass(obj){
         function Constructor(props) {
             this.props = props;
+            this.state = obj.getInitialState() || {};
         }
 
         Constructor.prototype = Object.assign({},obj);
+        Constructor.prototype.setState = function (newState) {
+            const feactInternalInstance = FeactInstanceMap.get(this);
+            feactInternalInstance._peddingState = newState;
+            feactInternalInstance.performUpdateIfNecessary();
+        }
 
 
         return Constructor;
@@ -85,6 +91,7 @@ class FeactCompositeComponent{
 
         const componentInstance = new this.currentElement.type(this.currentElement.props);
         this._instance = componentInstance;
+        FeactInstanceMap.set(this._instance, this);
         if(componentInstance.componentWillMount){
             componentInstance.componentWillMount();
         }
@@ -104,10 +111,21 @@ class FeactCompositeComponent{
         this.updateComponent(this.currentElement, nextElement);
     }
     updateComponent(lastElement, nextElement){
+        let shouldUpdate = true;
+        const nextState = Object.assign({}, this.state, this._peddingState);
+        if(shouldUpdate){
+            this._instance.props = nextElement.props; //更新“此Component”的props
+            this._instance.state = nextState; //更新“此Component”的state
+            const nextRenderedElement = this._instance.render(); // 重新render“此Component”
+            this._childComponentInstance.receiveComponent(nextRenderedElement); //“子组件”开始更新。
+        }else{
+            this._instance.props = nextProps;
+            this._instance.state = nextState;
+        }
 
-        this._instance.props = nextElement.props; //更新“此Component”的props
-        const nextRenderedElement = this._instance.render(); // 重新render“此Component”
-        this._childComponentInstance.receiveComponent(nextRenderedElement); //“子组件”开始更新。
+    }
+    performUpdateIfNecessary(){
+        this.updateComponent(this.currentElement, this.currentElement);
     }
 }
 
@@ -124,5 +142,13 @@ function instantiateFeactComponent(element) {
 const FeactReconciler = {
     mountComponent(internalInstance, container){
         internalInstance.mountComponent(container);
+    }
+}
+const FeactInstanceMap = {
+    set(key, value){
+        key.__feactInternalInstance = value;
+    },
+    get(key){
+        return key.__feactInternalInstance;
     }
 }
